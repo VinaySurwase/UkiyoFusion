@@ -1,0 +1,68 @@
+# Ignore large model and binary files (do not remove from working directory)
+custom_models/**/*.safetensors
+custom_models/**/*.bin
+custom_models/**/*.ckpt
+custom_models/**/*.pth
+custom_models/**/*.pt
+custom_models/**/*.npz
+custom_models/**/*.onnx
+custom_models/**/*.pb
+# Python
+__pycache__/
+*.py[cod]
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+*.pyo
+*.pyd
+*.pdb
+*.log
+*.pot
+*.mo
+*.db
+*.sqlite3
+*.ipynb_checkpoints
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Virtual environments
+venv/
+ENV/
+env/
+.venv/
+backend/simple_venv/
+
+# VSCode
+.vscode/
+
+# macOS
+.DS_Store
+
+# Node
+node_modules/
+frontend/node_modules/
+
+# Uploads and logs
+uploads/
+logs/
+
+# Docker
+*.pid
+
+# System
+Thumbs.db
+
+# Ignore model weights and large files
+custom_models/*/*.safetensors
+custom_models/*/*.bin
+custom_models/*/model.ckpt
+custom_models/*/pytorch_model.bin
+custom_models/*/diffusion_pytorch_model.safetensors
+
+# Ignore environment files
+.env
+.env.*
