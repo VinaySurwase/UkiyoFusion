@@ -25,6 +25,7 @@ const ImageUpload = ({ onImageUpload }) => {
   const openCamera = async (preferredFacingMode = facingMode) => {
     try {
       setCameraError('');
+      setCameraOpen(true); // Open dialog first
       
       // Stop existing stream if any
       if (stream) {
@@ -40,7 +41,6 @@ const ImageUpload = ({ onImageUpload }) => {
       });
       setStream(mediaStream);
       setFacingMode(preferredFacingMode);
-      setCameraOpen(true);
       
       // Set video stream once the dialog is open and video element is available
       setTimeout(() => {
@@ -168,7 +168,7 @@ const ImageUpload = ({ onImageUpload }) => {
         }}
       >
         <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Typography variant="h6">Take a Photo</Typography>
+          Take a Photo
           <Button onClick={closeCamera} sx={{ minWidth: 'auto', p: 1 }}>
             <Close />
           </Button>
