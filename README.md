@@ -6,6 +6,8 @@ Transform any image into authentic Ukiyo-e (traditional Japanese woodblock print
 
 - **Authentic Ukiyo-e Transformation**: Custom-trained model for traditional Japanese art style
 - **Multiple Ukiyo-e Styles**: Classic, Hokusai, Hiroshige, Utamaro, Kabuki, and Seasonal styles
+- **Multiple Input Methods**: Upload files, drag & drop, or capture photos directly from camera
+- **Camera Integration**: Take photos directly in the app with front/back camera switching
 - **Optional Prompts**: Works beautifully with or without additional descriptions
 - **Optimized Parameters**: Pre-configured for best Ukiyo-e results
 - **Simple Interface**: Clean, focused interface without unnecessary complexity
