@@ -13,16 +13,19 @@ The camera import feature allows users to capture photos directly within the app
 ## Features
 
 ### Camera Access
+
 - Automatically requests camera permissions when "Take Photo" button is clicked
 - Handles permission errors gracefully with user-friendly error messages
 - Uses the device's back camera by default (better for capturing objects/scenes)
 
 ### Camera Controls
+
 - **Switch Camera**: Toggle between front and back cameras (if available)
 - **High Quality**: Captures at 1280x720 resolution by default
 - **Mobile Optimized**: Uses `playsInline` and proper video constraints for mobile devices
 
 ### User Interface
+
 - **Modal Dialog**: Camera interface opens in a clean modal dialog
 - **Live Preview**: Real-time video preview before capturing
 - **Capture Button**: Large, prominent button to take the photo
@@ -31,16 +34,19 @@ The camera import feature allows users to capture photos directly within the app
 ## Technical Implementation
 
 ### Browser Compatibility
+
 - Uses `navigator.mediaDevices.getUserMedia()` API
 - Requires HTTPS in production (browsers block camera access on HTTP)
 - Fallback error handling for unsupported browsers
 
 ### Image Processing
+
 - Captures images as JPEG with 80% quality for optimal file size
 - Converts to base64 data URL for immediate processing
 - Maintains aspect ratio and original resolution
 
 ### Camera Constraints
+
 ```javascript
 {
   video: {
@@ -84,6 +90,7 @@ The camera import feature allows users to capture photos directly within the app
 ## Error Handling
 
 The feature includes comprehensive error handling for:
+
 - Camera permission denied
 - No camera available
 - Camera already in use by another application
@@ -92,6 +99,7 @@ The feature includes comprehensive error handling for:
 ## Future Enhancements
 
 Potential improvements for future versions:
+
 - Manual focus controls
 - Flash/torch toggle
 - Image resolution selection
