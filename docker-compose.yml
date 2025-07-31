@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  ukiyoe-fusion:
+    build: .
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./models:/app/models
+      - ./uploads:/app/uploads
+      - ./logs:/app/logs
+    environment:
+      - FLASK_ENV=production
+      - CUDA_VISIBLE_DEVICES=0  # Set to your GPU device
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    restart: unless-stopped
+
+volumes:
+  models:
+  uploads:
+  logs:

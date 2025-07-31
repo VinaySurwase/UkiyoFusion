@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>UkiyoeFusion API Test</title>
+</head>
+<body>
+    <h1>UkiyoeFusion API Test</h1>
+    <div id="results"></div>
+    
+    <script>
+        const API_BASE_URL = 'http://localhost:5001';
+        
+        async function testAPI() {
+            const results = document.getElementById('results');
+            
+            try {
+                // Test models endpoint
+                console.log('Testing models endpoint...');
+                const modelsResponse = await fetch(`${API_BASE_URL}/api/models`);
+                const modelsData = await modelsResponse.json();
+                
+                // Test styles endpoint  
+                console.log('Testing styles endpoint...');
+                const stylesResponse = await fetch(`${API_BASE_URL}/api/styles`);
+                const stylesData = await stylesResponse.json();
+                
+                results.innerHTML = `
+                    <h2>✅ API Test Successful!</h2>
+                    <h3>Models:</h3>
+                    <pre>${JSON.stringify(modelsData, null, 2)}</pre>
+                    <h3>Styles:</h3>
+                    <pre>${JSON.stringify(stylesData, null, 2)}</pre>
+                `;
+                
+            } catch (error) {
+                console.error('API Test failed:', error);
+                results.innerHTML = `
+                    <h2>❌ API Test Failed!</h2>
+                    <p>Error: ${error.message}</p>
+                    <p>Check console for details</p>
+                `;
+            }
+        }
+        
+        // Run test when page loads
+        window.onload = testAPI;
+    </script>
+</body>
+</html>
