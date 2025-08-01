@@ -31,12 +31,37 @@ current_pipeline = None
 current_model = None
 available_models = {}
 
-# Predefined Ukiyo-e styles - Only Classic Ukiyo-e style
+# Predefined Ukiyo-e styles - Multiple authentic styles
 STYLES = {
     "classic_ukiyo": {
         "name": "Classic Ukiyo-e",
-        "prompt": "ukiyo-e woodblock print, Edo period, mountain landscape, bold outlines, flat colors, traditional Japanese art, masterpiece",
-        "negative_prompt": "modern, contemporary, 3D, photorealistic, blurry, low quality"
+        "prompt": "ukiyo-e woodblock print, traditional Japanese art, Edo period style, bold black outlines, flat color blocks, no gradients, simplified forms, decorative patterns, traditional pigments, woodcut texture, printmaking style, Japanese aesthetics, stylized composition, geometric shapes, strong contrast, masterpiece",
+        "negative_prompt": "photorealistic, realistic, 3D render, gradients, shading, shadows, depth, modern style, western art, photograph, detailed textures, soft edges, blurred lines, contemporary, digital art, airbrushed, smooth surfaces"
+    },
+    "landscape_ukiyo": {
+        "name": "Landscape Ukiyo-e", 
+        "prompt": "ukiyo-e landscape print, traditional Japanese scenery, Mount Fuji, cherry blossoms, traditional architecture, bold outlines, flat colors, stylized nature, Edo period landscape art, woodblock print texture, Japanese countryside, serene composition, masterpiece",
+        "negative_prompt": "photorealistic, realistic, 3D render, gradients, shading, shadows, modern buildings, western landscape, photograph, detailed textures, contemporary, digital art"
+    },
+    "portrait_ukiyo": {
+        "name": "Portrait Ukiyo-e",
+        "prompt": "ukiyo-e portrait print, traditional Japanese figure, geisha, samurai, kabuki actor, elegant kimono patterns, bold facial features, flat color blocks, decorative background, Edo period portraiture, woodblock print style, stylized human figure, masterpiece", 
+        "negative_prompt": "photorealistic, realistic, 3D render, gradients, shading, modern clothing, western portrait, photograph, detailed skin texture, contemporary fashion, digital art"
+    },
+    "nature_ukiyo": {
+        "name": "Nature Ukiyo-e",
+        "prompt": "ukiyo-e nature print, traditional Japanese flora and fauna, birds, flowers, bamboo, pine trees, decorative natural elements, bold outlines, seasonal themes, woodblock print texture, stylized organic forms, flat color palette, masterpiece",
+        "negative_prompt": "photorealistic, realistic, 3D render, gradients, shading, modern nature photography, western botanical art, detailed textures, contemporary, digital art"
+    },
+    "urban_ukiyo": {
+        "name": "Urban Ukiyo-e", 
+        "prompt": "ukiyo-e urban scene, traditional Japanese city life, Edo period streets, merchant districts, traditional architecture, busy marketplace, bold outlines, flat colors, stylized urban composition, woodblock print style, cultural scenes, masterpiece",
+        "negative_prompt": "photorealistic, realistic, 3D render, gradients, shading, modern city, skyscrapers, cars, contemporary urban life, western architecture, photograph, digital art"
+    },
+    "seasonal_ukiyo": {
+        "name": "Seasonal Ukiyo-e",
+        "prompt": "ukiyo-e seasonal print, traditional Japanese seasons, spring cherry blossoms, summer festivals, autumn maple leaves, winter snow scenes, seasonal activities, bold outlines, flat colors, decorative seasonal elements, woodblock print texture, masterpiece",
+        "negative_prompt": "photorealistic, realistic, 3D render, gradients, shading, modern seasonal scenes, western seasonal art, photograph, detailed textures, contemporary, digital art"
     }
 }
 
@@ -136,7 +161,7 @@ def load_model(model_id):
         raise
 
 def process_image(image_data, prompt="", negative_prompt="", style="classic_ukiyo", 
-                 strength=0.75, guidance_scale=8.5, num_inference_steps=25, model_id=None):
+                 strength=0.85, guidance_scale=12.0, num_inference_steps=30, model_id=None):
     """Process image with Ukiyo-e transformation"""
     try:
         # Decode base64 image
@@ -240,9 +265,9 @@ def transform_image():
         image_data = data['image']
         prompt = data.get('prompt', '')  # Optional, can be empty
         style = data.get('style', 'classic_ukiyo')  # Default to classic Ukiyo-e
-        strength = float(data.get('strength', 0.75))  # Updated default
-        guidance_scale = float(data.get('guidance_scale', 8.5))  # Ukiyo-e optimized
-        num_inference_steps = int(data.get('num_inference_steps', 25))  # Faster for Ukiyo-e
+        strength = float(data.get('strength', 0.85))  # Higher for more style transformation
+        guidance_scale = float(data.get('guidance_scale', 12.0))  # Higher for stronger style adherence
+        num_inference_steps = int(data.get('num_inference_steps', 30))  # More steps for better quality
         model_id = data.get('model_id')  # Will default to Ukiyo-e model
         
         # Process the image

@@ -43,9 +43,9 @@ function App() {
   const [prompt, setPrompt] = useState('');
   const [selectedStyle, setSelectedStyle] = useState('classic_ukiyo');
   const [selectedModel, setSelectedModel] = useState('');
-  const [strength, setStrength] = useState(0.75);  // Updated default
-  const [guidanceScale, setGuidanceScale] = useState(8.5);  // Ukiyo-e optimized
-  const [steps, setSteps] = useState(25);  // Faster for Ukiyo-e
+  const [strength, setStrength] = useState(0.85);  // Higher for more transformation
+  const [guidanceScale, setGuidanceScale] = useState(12.0);  // Higher for stronger style adherence  
+  const [steps, setSteps] = useState(30);  // More steps for better quality
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [models, setModels] = useState({});
@@ -56,6 +56,19 @@ function App() {
   useEffect(() => {
     loadModelsAndStyles();
   }, []);
+
+  // Helper function to get style descriptions
+  const getStyleDescription = (styleId) => {
+    const descriptions = {
+      'classic_ukiyo': 'Traditional woodblock print with bold outlines and flat colors',
+      'landscape_ukiyo': 'Scenic views with Mount Fuji, cherry blossoms, and nature',
+      'portrait_ukiyo': 'Geisha, samurai, and kabuki actors in traditional dress', 
+      'nature_ukiyo': 'Flora, fauna, birds, and seasonal natural elements',
+      'urban_ukiyo': 'Edo period city life, markets, and street scenes',
+      'seasonal_ukiyo': 'Spring, summer, autumn, winter seasonal themes'
+    };
+    return descriptions[styleId] || 'Traditional Japanese art style';
+  };
 
     const loadModelsAndStyles = async () => {
     try {
@@ -173,7 +186,7 @@ function App() {
               <CardContent>
                 <Box display="flex" alignItems="center" mb={2}>
                   <Settings sx={{ mr: 1, color: 'primary.main' }} />
-                  <Typography variant="h6">Ukiyo-e Transformation</Typography>
+                  <Typography variant="h6">Ukiyo-e Art Styles</Typography>
                 </Box>
 
                 {/* Model Selection */}
@@ -210,7 +223,14 @@ function App() {
                   >
                     {Object.entries(styles).map(([id, style]) => (
                       <MenuItem key={id} value={id}>
-                        {style.name}
+                        <Box>
+                          <Typography variant="body2" fontWeight="medium">
+                            {style.name}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary" display="block">
+                            {getStyleDescription(id)}
+                          </Typography>
+                        </Box>
                       </MenuItem>
                     ))}
                   </Select>
@@ -227,6 +247,7 @@ function App() {
                   onChange={(e) => setPrompt(e.target.value)}
                   margin="normal"
                   variant="outlined"
+                  helperText="Will be added to enhanced Ukiyo-e style prompt with bold outlines, flat colors, and traditional aesthetics"
                 />
 
                 {/* Advanced Settings Toggle */}

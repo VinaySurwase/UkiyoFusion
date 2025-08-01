@@ -15,11 +15,17 @@ UkiyoeFusion bridges the gap between modern photography and traditional Japanese
 
 - **Authentic Ukiyo-e Style**: Classic traditional style with your custom-trained LoRA model
 - **ControlNet Integration**: Structural guidance while maintaining artistic style
-  - 🎯 **Canny Edge Detection**: Preserves edges and outlines
+  - 🎯 **Canny Edge Detection**: Preserves edges and outlines (automatically applied)
   - 🏔️ **Depth Estimation**: Maintains spatial relationships and depth
   - 🕺 **Pose Detection**: Preserves human poses and body structure
-- **Smart Prompting**: Enhanced default prompts with optional user additions
-- **Structural Preservation**: Combine artistic style with precise structural control
+- **Smart Prompting**: Default prompt with optional user additions
+  - Default: "ukiyo-e woodblock print, Edo period, mountain landscape, bold outlines, flat colors, traditional Japanese art, masterpiece"
+  - User prompts are appended to the default for enhanced results
+- **Optimized Parameters**: Pre-configured settings for best Ukiyo-e results
+  - Strength: 0.75
+  - Guidance Scale: 8.5
+  - Inference Steps: 25
+  - Resolution: 512x512
 
 ### 📱 **Modern Input Methods**
 
@@ -88,11 +94,23 @@ chmod +x run.sh
 ### 🎨 Transformation Workflow
 
 1. **Select Input**: Upload a file or capture with camera
-2. **Choose ControlNet** _(Optional)_: Select structural guidance type (Canny, Depth, or Pose)
-3. **Add Context** _(Optional)_: Provide additional descriptive prompts
-4. **Configure Settings**: Adjust ControlNet strength and parameters
-5. **Transform**: Click transform and let AI create your Ukiyo-e artwork
-6. **Download**: Save your traditional Japanese artwork with preserved structure
+2. **Choose Model**: Select your Ukiyo-e model (automatic detection of available models)
+3. **Add Context** _(Optional)_: Provide additional descriptive prompts that will be added to the default prompt
+4. **Configure Settings** _(Optional)_: Adjust advanced parameters if needed (strength, guidance scale, steps)
+5. **Transform**: Click transform and let AI create your Ukiyo-e artwork with automatic ControlNet guidance
+6. **Download**: Save your traditional Japanese artwork
+
+### 📋 Default Configuration
+
+| Parameter       | Value                                                                                                                        | Purpose                                  |
+| --------------- | ---------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------- |
+| **Base Prompt** | "ukiyo-e woodblock print, Edo period, mountain landscape, bold outlines, flat colors, traditional Japanese art, masterpiece" | Core Ukiyo-e style definition            |
+| **Negative**    | "modern, contemporary, 3D, photorealistic, blurry, low quality"                                                              | Prevents unwanted modern elements        |
+| **Strength**    | 0.75                                                                                                                         | Balance between original and transformed |
+| **Guidance**    | 8.5                                                                                                                          | Optimal prompt adherence for Ukiyo-e     |
+| **Steps**       | 25                                                                                                                           | Fast processing with quality results     |
+| **Resolution**  | 512x512                                                                                                                      | Optimized for Ukiyo-e model performance  |
+| **ControlNet**  | Canny (0.8 strength)                                                                                                         | Automatic edge preservation              |
 
 ### 📋 Camera Feature Requirements
 
