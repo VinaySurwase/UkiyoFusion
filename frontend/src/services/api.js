@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = process.env.NODE_ENV === 'development' ? '' : (process.env.REACT_APP_API_URL || 'http://localhost:5001');
+const API_BASE_URL = process.env.NODE_ENV === 'development' ? 'http://localhost:5001' : (process.env.REACT_APP_API_URL || 'http://localhost:5001');
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -58,6 +58,25 @@ export const getStyles = async () => {
       url: error.config?.url
     });
     throw new Error('Failed to fetch styles');
+  }
+};
+
+export const getControlNetOptions = async () => {
+  try {
+    console.log('Fetching ControlNet options from:', `${API_BASE_URL}/api/controlnet`);
+    const response = await api.get('/api/controlnet');
+    console.log('ControlNet response:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('API Error fetching ControlNet options:', error);
+    console.error('Error details:', {
+      message: error.message,
+      response: error.response?.data,
+      status: error.response?.status,
+      url: error.config?.url
+    });
+    // Return empty options if ControlNet is not available
+    return { controlnet_options: {} };
   }
 };
 

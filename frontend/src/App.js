@@ -43,7 +43,7 @@ function App() {
   const [prompt, setPrompt] = useState('');
   const [selectedStyle, setSelectedStyle] = useState('classic_ukiyo');
   const [selectedModel, setSelectedModel] = useState('');
-  const [strength, setStrength] = useState(0.78);  // Ukiyo-e optimized
+  const [strength, setStrength] = useState(0.75);  // Updated default
   const [guidanceScale, setGuidanceScale] = useState(8.5);  // Ukiyo-e optimized
   const [steps, setSteps] = useState(25);  // Faster for Ukiyo-e
   const [isLoading, setIsLoading] = useState(false);
@@ -57,32 +57,25 @@ function App() {
     loadModelsAndStyles();
   }, []);
 
-  const loadModelsAndStyles = async () => {
+    const loadModelsAndStyles = async () => {
     try {
-      console.log('Loading models and styles...');
-      const [modelsData, stylesData] = await Promise.all([
+      // Load models and styles
+      const [modelsResponse, stylesResponse] = await Promise.all([
         getModels(),
         getStyles()
       ]);
       
-      console.log('Loaded models:', modelsData);
-      console.log('Loaded styles:', stylesData);
+      setModels(modelsResponse.models || {});
+      setStyles(stylesResponse.styles || {});
       
-      setModels(modelsData.models);
-      setStyles(stylesData.styles);
-      
-      // Set default model if not set
-      if (!selectedModel && Object.keys(modelsData.models).length > 0) {
-        const defaultModel = Object.keys(modelsData.models)[0];
-        console.log('Setting default model:', defaultModel);
-        setSelectedModel(defaultModel);
+      // Set default model if available
+      const modelKeys = Object.keys(modelsResponse.models || {});
+      if (modelKeys.length > 0 && !selectedModel) {
+        setSelectedModel(modelKeys[0]);
       }
-      
-      console.log('Successfully loaded models and styles');
-    } catch (err) {
-      const errorMessage = 'Failed to load models and styles: ' + err.message;
-      console.error('Error in loadModelsAndStyles:', err);
-      setError(errorMessage);
+    } catch (error) {
+      console.error('Failed to load models and styles:', error);
+      setError('Failed to load application data');
     }
   };
 
@@ -229,12 +222,11 @@ function App() {
                   multiline
                   rows={3}
                   label="Additional Description (Optional)"
-                  placeholder="Add specific elements or leave empty for pure Ukiyo-e style..."
+                  placeholder="Add specific elements like cherry blossoms, samurai, temple, or leave empty for pure style..."
                   value={prompt}
                   onChange={(e) => setPrompt(e.target.value)}
                   margin="normal"
                   variant="outlined"
-                  helperText="Leave empty for automatic Ukiyo-e transformation, or add specific elements you want to include"
                 />
 
                 {/* Advanced Settings Toggle */}

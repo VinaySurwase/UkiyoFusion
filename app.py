@@ -6,10 +6,14 @@ import base64
 from PIL import Image
 import torch
 from diffusers import StableDiffusionImg2ImgPipeline, DPMSolverMultistepScheduler
+from diffusers import StableDiffusionControlNetImg2ImgPipeline, ControlNetModel
 import json
 from datetime import datetime
 import uuid
 import logging
+import cv2
+import numpy as np
+from controlnet_aux import CannyDetector, MidasDetector, OpenposeDetector
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -31,37 +35,35 @@ current_pipeline = None
 current_model = None
 available_models = {}
 
-# Predefined Ukiyo-e styles
+# ControlNet models for structural guidance
+controlnet_models = {}
+controlnet_processors = {}
+
+# ControlNet configurations for different guidance types
+CONTROLNET_CONFIGS = {
+    "canny": {
+        "model_id": "lllyasviel/sd-controlnet-canny",
+        "name": "Canny Edge Detection",
+        "description": "Preserves edge structure and outlines"
+    },
+    "depth": {
+        "model_id": "lllyasviel/sd-controlnet-depth", 
+        "name": "Depth Estimation",
+        "description": "Maintains depth and spatial relationships"
+    },
+    "openpose": {
+        "model_id": "lllyasviel/sd-controlnet-openpose",
+        "name": "Pose Detection", 
+        "description": "Preserves human pose and body structure"
+    }
+}
+
+# Predefined Ukiyo-e styles - Only Classic Ukiyo-e style
 STYLES = {
     "classic_ukiyo": {
         "name": "Classic Ukiyo-e",
-        "prompt": "Authentic Edo-period ukiyo-e woodblock print, flat perspective, bold black outlines, watercolor palette, nature/figures balanced, kabuki influence, masterpiece, by Utamaro/Hokusai/Hiroshige, muted earth tones, matte finish",
-        "negative_prompt": "modern, western, 3D, photography, realism, shading, depth of field, anime, manga, CGI, oil painting, sharp details, high contrast, neon colors, texture, canvas, brush strokes"
-    },
-    "hokusai_style": {
-        "name": "Hokusai Style",
-        "prompt": "Hokusai ukiyo-e style, great wave, Mount Fuji, bold blue and white, traditional Japanese woodblock print, flowing water patterns, detailed line work, flat colors",
-        "negative_prompt": "modern, western, 3D, photography, realism, shading, depth of field, anime, manga, CGI, oil painting, sharp details, high contrast, neon colors"
-    },
-    "hiroshige_landscape": {
-        "name": "Hiroshige Landscape",
-        "prompt": "Hiroshige landscape ukiyo-e style, scenic views, travel scenes, atmospheric perspective, seasonal changes, traditional Japanese architecture, soft color gradients",
-        "negative_prompt": "modern, western, 3D, photography, realism, shading, depth of field, anime, manga, CGI, oil painting, sharp details, high contrast"
-    },
-    "utamaro_beauty": {
-        "name": "Utamaro Beauty",
-        "prompt": "Utamaro bijin-ga style, beautiful women, elegant poses, traditional Japanese clothing, kimono patterns, delicate features, refined composition",
-        "negative_prompt": "modern, western, 3D, photography, realism, shading, depth of field, anime, manga, CGI, oil painting, sharp details, high contrast"
-    },
-    "kabuki_theatrical": {
-        "name": "Kabuki Theatrical",
-        "prompt": "Kabuki actor ukiyo-e style, dramatic poses, theatrical makeup, colorful costumes, stage performance, traditional Japanese theater",
-        "negative_prompt": "modern, western, 3D, photography, realism, shading, depth of field, anime, manga, CGI, oil painting, sharp details, high contrast"
-    },
-    "nature_seasonal": {
-        "name": "Seasonal Nature",
-        "prompt": "Japanese seasonal ukiyo-e style, cherry blossoms, autumn leaves, snow scenes, traditional garden, natural harmony, seasonal flowers",
-        "negative_prompt": "modern, western, 3D, photography, realism, shading, depth of field, anime, manga, CGI, oil painting, sharp details, high contrast"
+        "prompt": "ukiyo-e woodblock print, Edo period, mountain landscape, bold outlines, flat colors, traditional Japanese art, masterpiece",
+        "negative_prompt": "modern, contemporary, 3D, photorealistic, blurry, low quality"
     }
 }
 
@@ -96,11 +98,96 @@ def scan_for_models():
     logger.info(f"Available models: {list(available_models.keys())}")
     return available_models
 
-def load_model(model_id):
-    """Load a specific model with Ukiyo-e optimizations"""
+def initialize_controlnet_models():
+    """Initialize ControlNet models and processors"""
+    global controlnet_models, controlnet_processors
+    
+    try:
+        # Determine device
+        if torch.cuda.is_available():
+            device = "cuda"
+            torch_dtype = torch.float16
+        elif hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
+            device = "mps"
+            torch_dtype = torch.float32
+        else:
+            device = "cpu"
+            torch_dtype = torch.float32
+            
+        logger.info(f"Initializing ControlNet models on device: {device}")
+        
+        # Initialize ControlNet models
+        for control_type, config in CONTROLNET_CONFIGS.items():
+            try:
+                logger.info(f"Loading ControlNet model: {config['name']}")
+                controlnet = ControlNetModel.from_pretrained(
+                    config['model_id'],
+                    torch_dtype=torch_dtype
+                ).to(device)
+                controlnet_models[control_type] = controlnet
+                logger.info(f"✓ Loaded {config['name']} ControlNet")
+            except Exception as e:
+                logger.warning(f"Failed to load {config['name']} ControlNet: {str(e)}")
+        
+        # Initialize preprocessors
+        try:
+            controlnet_processors['canny'] = CannyDetector()
+            logger.info("✓ Initialized Canny detector")
+        except Exception as e:
+            logger.warning(f"Failed to initialize Canny detector: {str(e)}")
+            
+        try:
+            controlnet_processors['depth'] = MidasDetector.from_pretrained('valhalla/t2iadapter-aux-models')
+            logger.info("✓ Initialized Depth detector")
+        except Exception as e:
+            logger.warning(f"Failed to initialize Depth detector: {str(e)}")
+            
+        try:
+            controlnet_processors['openpose'] = OpenposeDetector.from_pretrained('valhalla/t2iadapter-aux-models')
+            logger.info("✓ Initialized Pose detector")
+        except Exception as e:
+            logger.warning(f"Failed to initialize Pose detector: {str(e)}")
+            
+        logger.info(f"ControlNet initialization complete. Available: {list(controlnet_models.keys())}")
+        
+    except Exception as e:
+        logger.error(f"Error initializing ControlNet models: {str(e)}")
+
+def preprocess_controlnet_input(image, control_type, **kwargs):
+    """Preprocess image for specific ControlNet type"""
+    try:
+        if control_type == 'canny':
+            low_threshold = kwargs.get('low_threshold', 100)
+            high_threshold = kwargs.get('high_threshold', 200)
+            control_image = controlnet_processors['canny'](
+                image, 
+                low_threshold=low_threshold, 
+                high_threshold=high_threshold
+            )
+            
+        elif control_type == 'depth':
+            control_image = controlnet_processors['depth'](image)
+            
+        elif control_type == 'openpose':
+            control_image = controlnet_processors['openpose'](image)
+            
+        else:
+            raise ValueError(f"Unsupported ControlNet type: {control_type}")
+            
+        return control_image
+        
+    except Exception as e:
+        logger.error(f"Error preprocessing image for {control_type}: {str(e)}")
+        raise
+
+def load_model(model_id, control_type=None):
+    """Load a specific model with Ukiyo-e optimizations and optional ControlNet"""
     global current_pipeline, current_model
     
-    if current_model == model_id and current_pipeline is not None:
+    # Create a unique identifier for the pipeline configuration
+    pipeline_id = f"{model_id}_{control_type}" if control_type else model_id
+    
+    if current_model == pipeline_id and current_pipeline is not None:
         return current_pipeline
     
     try:
@@ -108,7 +195,7 @@ def load_model(model_id):
         if not model_info:
             raise ValueError(f"Model {model_id} not found")
         
-        logger.info(f"Loading model: {model_info['name']}")
+        logger.info(f"Loading model: {model_info['name']} with ControlNet: {control_type or 'None'}")
         
         # Clear current pipeline to free memory
         if current_pipeline:
@@ -128,16 +215,30 @@ def load_model(model_id):
         
         logger.info(f"Using device: {device}")
         
-        # Load the pipeline with optimizations
-        pipeline = StableDiffusionImg2ImgPipeline.from_pretrained(
-            model_info['path'],
-            torch_dtype=torch_dtype,
-            safety_checker=None,
-            requires_safety_checker=False,
-            low_cpu_mem_usage=True if device == "cpu" else False
-        )
+        # Load the pipeline with ControlNet if specified
+        if control_type and control_type in controlnet_models:
+            # Load ControlNet pipeline
+            controlnet = controlnet_models[control_type]
+            pipeline = StableDiffusionControlNetImg2ImgPipeline.from_pretrained(
+                model_info['path'],
+                controlnet=controlnet,
+                torch_dtype=torch_dtype,
+                safety_checker=None,
+                requires_safety_checker=False,
+                low_cpu_mem_usage=True if device == "cpu" else False
+            )
+            logger.info(f"Loaded ControlNet pipeline with {CONTROLNET_CONFIGS[control_type]['name']}")
+        else:
+            # Load standard pipeline
+            pipeline = StableDiffusionImg2ImgPipeline.from_pretrained(
+                model_info['path'],
+                torch_dtype=torch_dtype,
+                safety_checker=None,
+                requires_safety_checker=False,
+                low_cpu_mem_usage=True if device == "cpu" else False
+            )
         
-        # Use DPM Solver for better quality (as in the custom script)
+        # Use DPM Solver for better quality
         from diffusers import DPMSolverMultistepScheduler
         pipeline.scheduler = DPMSolverMultistepScheduler.from_config(pipeline.scheduler.config)
         
@@ -151,7 +252,7 @@ def load_model(model_id):
             pipeline.enable_vae_slicing()
         
         current_pipeline = pipeline
-        current_model = model_id
+        current_model = pipeline_id
         logger.info(f"Model loaded successfully: {model_info['name']} on {device}")
         
         return pipeline
@@ -161,8 +262,8 @@ def load_model(model_id):
         raise
 
 def process_image(image_data, prompt="", negative_prompt="", style="classic_ukiyo", 
-                 strength=0.78, guidance_scale=8.5, num_inference_steps=25, model_id=None):
-    """Process image with Ukiyo-e transformation"""
+                 strength=0.75, guidance_scale=8.5, num_inference_steps=25, model_id=None):
+    """Process image with Ukiyo-e transformation and automatic ControlNet guidance"""
     try:
         # Decode base64 image
         if image_data.startswith('data:image'):
@@ -171,58 +272,73 @@ def process_image(image_data, prompt="", negative_prompt="", style="classic_ukiy
         image_bytes = base64.b64decode(image_data)
         image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
         
-        # Resize image - use 512x512 for optimal Ukiyo-e results
-        target_size = 512
-        aspect_ratio = image.size[0] / image.size[1]
-        
-        if aspect_ratio > 1:  # Landscape
-            width = target_size
-            height = int(target_size / aspect_ratio)
-        else:  # Portrait or square
-            height = target_size
-            width = int(target_size * aspect_ratio)
-        
-        # Make dimensions divisible by 8
-        width = (width // 8) * 8
-        height = (height // 8) * 8
+        # Resize image - use fixed 512x512 dimensions
+        width = 512
+        height = 512
         
         image = image.resize((width, height), Image.Resampling.LANCZOS)
+        
+        # Automatically determine best ControlNet type
+        control_type = "canny"  # Default to canny for edge preservation
+        controlnet_conditioning_scale = 0.8  # Moderate strength for natural look
         
         # Load model - default to Ukiyo-e model
         if not model_id:
             model_id = "ukiyo_e_lora" if "ukiyo_e_lora" in available_models else list(available_models.keys())[0]
         
-        pipeline = load_model(model_id)
+        # Load pipeline with automatic ControlNet
+        pipeline = load_model(model_id, control_type)
         
         # Get style information
         style_info = STYLES.get(style, STYLES["classic_ukiyo"])
         
-        # Build prompts - if user prompt is empty, use only style prompt
+        # Build prompts - if user prompt is provided, append it to the default prompt
         if prompt.strip():
-            # Combine user prompt with style
+            # Append user prompt to the default style prompt
             full_prompt = f"{style_info['prompt']}, {prompt.strip()}"
         else:
-            # Use only style prompt for pure Ukiyo-e transformation
+            # Use only the default style prompt
             full_prompt = style_info['prompt']
         
-        # Always use style negative prompt (don't expose to UI)
+        # Always use style negative prompt
         full_negative_prompt = style_info['negative_prompt']
         
         logger.info(f"Processing image with Ukiyo-e style: {style}")
         logger.info(f"Using prompt: {full_prompt}")
+        logger.info(f"Auto-applying ControlNet: {CONTROLNET_CONFIGS[control_type]['name']}")
+        
+        # Prepare generation parameters
+        generation_kwargs = {
+            "prompt": full_prompt,
+            "image": image,
+            "strength": strength,
+            "guidance_scale": guidance_scale,
+            "negative_prompt": full_negative_prompt,
+            "num_inference_steps": num_inference_steps,
+            "width": width,
+            "height": height
+        }
+        
+        # Add ControlNet parameters automatically
+        if control_type and control_type in controlnet_models:
+            # Preprocess image for ControlNet
+            control_image = preprocess_controlnet_input(
+                image, 
+                control_type,
+                low_threshold=100,
+                high_threshold=200
+            )
+            
+            generation_kwargs.update({
+                "control_image": control_image,
+                "controlnet_conditioning_scale": controlnet_conditioning_scale
+            })
+            
+            logger.info(f"Applied automatic ControlNet guidance with strength {controlnet_conditioning_scale}")
         
         # Generate image with Ukiyo-e optimized parameters
         with torch.autocast("cuda" if torch.cuda.is_available() else "cpu"):
-            result = pipeline(
-                prompt=full_prompt,
-                image=image,
-                strength=strength,
-                guidance_scale=guidance_scale,
-                negative_prompt=full_negative_prompt,
-                num_inference_steps=num_inference_steps,
-                width=width,
-                height=height
-            ).images[0]
+            result = pipeline(**generation_kwargs).images[0]
         
         # Convert result to base64
         output_buffer = io.BytesIO()
@@ -237,6 +353,7 @@ def process_image(image_data, prompt="", negative_prompt="", style="classic_ukiy
             'prompt_used': full_prompt,
             'negative_prompt_used': full_negative_prompt,
             'style_applied': style_info['name'],
+            'controlnet_used': CONTROLNET_CONFIGS[control_type]['name'] if control_type else None,
             'dimensions': f"{width}x{height}"
         }
         
@@ -261,9 +378,29 @@ def get_styles():
     """Get available styles"""
     return jsonify({'styles': STYLES})
 
+@app.route('/api/controlnet', methods=['GET'])
+def get_controlnet_options():
+    """Get available ControlNet options"""
+    available_controlnets = {}
+    for control_type, config in CONTROLNET_CONFIGS.items():
+        if control_type in controlnet_models:
+            available_controlnets[control_type] = {
+                "name": config["name"],
+                "description": config["description"],
+                "available": True
+            }
+        else:
+            available_controlnets[control_type] = {
+                "name": config["name"], 
+                "description": config["description"],
+                "available": False
+            }
+    
+    return jsonify({'controlnet_options': available_controlnets})
+
 @app.route('/api/transform', methods=['POST'])
 def transform_image():
-    """Transform an image with Ukiyo-e style"""
+    """Transform an image with Ukiyo-e style and automatic ControlNet guidance"""
     try:
         data = request.get_json()
         
@@ -274,15 +411,15 @@ def transform_image():
         image_data = data['image']
         prompt = data.get('prompt', '')  # Optional, can be empty
         style = data.get('style', 'classic_ukiyo')  # Default to classic Ukiyo-e
-        strength = float(data.get('strength', 0.78))  # Ukiyo-e optimized default
+        strength = float(data.get('strength', 0.75))  # Updated default
         guidance_scale = float(data.get('guidance_scale', 8.5))  # Ukiyo-e optimized
         num_inference_steps = int(data.get('num_inference_steps', 25))  # Faster for Ukiyo-e
         model_id = data.get('model_id')  # Will default to Ukiyo-e model
         
-        # Process the image
+        # Process the image with automatic ControlNet
         result = process_image(
             image_data=image_data,
-            prompt=prompt,  # Can be empty
+            prompt=prompt,
             style=style,
             strength=strength,
             guidance_scale=guidance_scale,
@@ -315,6 +452,7 @@ def index():
         'endpoints': [
             '/api/models',
             '/api/styles', 
+            '/api/controlnet',
             '/api/transform',
             '/api/health'
         ]
@@ -326,6 +464,9 @@ if __name__ == '__main__':
     
     # Scan for available models on startup
     scan_for_models()
+    
+    # Initialize ControlNet models and processors
+    initialize_controlnet_models()
     
     # Use port 5001 to avoid conflicts with AirPlay
     port = int(os.environ.get('FLASK_RUN_PORT', 5001))

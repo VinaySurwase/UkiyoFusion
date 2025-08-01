@@ -49,7 +49,7 @@ const AdvancedSettings = ({
           valueLabelDisplay="auto"
         />
         <Typography variant="caption" color="text.secondary">
-          0.1 = Subtle changes | 1.0 = Complete transformation (0.78 optimal for Ukiyo-e)
+          0.1 = Subtle changes | 1.0 = Complete transformation (0.75 optimal for Ukiyo-e)
         </Typography>
       </Box>
 
